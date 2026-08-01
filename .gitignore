@@ -1,0 +1,23 @@
+# Nutzer- und Gruppendaten – dürfen nie ins Repo
+data/
+
+# Geheimnisse: nur das Beispiel ist erlaubt
+.env
+.env.*
+!.env.example
+
+# Betriebswissen (Adressen, Pfade, Anbieter) bleibt lokal
+CLAUDE.local.md
+
+# Werkzeuge und Build-Ausgaben
+node_modules/
+dist/
+dist-ssr/
+.claude/
+*.log
+
+# Betriebssystem und Editoren
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

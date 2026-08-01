@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="15 -1 80 80"
+     width="400" height="400" role="img"
+     aria-label="Emphasis – Puls, wird geladen">
+<title>Emphasis – Puls</title>
+<style>
+  .s{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:10.0}
+  .grp{opacity:0;animation:fade 1.4s linear infinite}
+  .pulse{transform-origin:0 0;animation:pulse 1.4s linear infinite}
+  .wave{stroke:#0F1015;stroke-dasharray:86.67 9999;stroke-dashoffset:86.67;
+        animation:wave 1.4s linear infinite}
+  .beat{stroke:#0C9C8D;stroke-dasharray:128.25 9999;stroke-dashoffset:128.25;
+        animation:beat 1.4s linear infinite}
+  .head{stroke:#0C9C8D;stroke-width:12.5;stroke-dasharray:0.01 9999;
+        animation:head 1.4s linear infinite}
+
+  @keyframes wave{ 0%{stroke-dashoffset:86.67} 20.2%,100%{stroke-dashoffset:0} }
+  @keyframes beat{ 0%,20.2%{stroke-dashoffset:128.25} 50%,100%{stroke-dashoffset:0} }
+  @keyframes head{ 0%{stroke-dashoffset:0;opacity:1}
+                   50%{stroke-dashoffset:-214.92;opacity:1}
+                   51%,100%{stroke-dashoffset:-214.92;opacity:0} }
+  @keyframes pulse{ 0%,25%{transform:scale(1)}
+                    29%{transform:scale(1.075)}
+                    38%,100%{transform:scale(1)} }
+  @keyframes fade{ 0%{opacity:0} 8%{opacity:1} 68%{opacity:1}
+                   82%,100%{opacity:0} }
+
+  @media (prefers-reduced-motion:reduce){
+    .grp,.pulse,.wave,.beat,.head{animation:none}
+    .grp{opacity:1}
+    .wave,.beat{stroke-dashoffset:0}
+    .head{opacity:0}
+  }
+</style>
+<g class="grp"><g transform="translate(55.0 39.0)"><g class="pulse"><g transform="translate(-55.0 -39.0)">
+  <path class="s wave" d="M 24 46 L 35 26 L 46 66 L 56 46"/>
+  <path class="s beat" d="M 56 46 L 65 8 L 75 70 L 86 46"/>
+  <path class="s head" d="M 24 46 L 35 26 L 46 66 L 56 46 L 65 8 L 75 70 L 86 46"/>
+</g></g></g></g>
+</svg>

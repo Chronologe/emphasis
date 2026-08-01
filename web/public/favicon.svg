@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" width="64" height="64" role="img" aria-label="Emphasis">
+  <title>Emphasis</title>
+  <rect width="72" height="72" rx="16" fill="#F2F3F1"/>
+  <g transform="translate(36 36) scale(0.62) translate(-55 -39)">
+    <path d="M 24 46 L 35 26 L 46 66 L 56 46" stroke="#0F1015" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 56 46 L 65 8 L 75 70 L 86 46" stroke="#0C9C8D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

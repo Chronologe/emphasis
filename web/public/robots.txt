@@ -1,0 +1,16 @@
+# Emphasis — https://emphasize.me
+User-agent: *
+Allow: /
+
+# Interne Endpunkte und private Bereiche gehören nicht in den Index
+Disallow: /api/
+Disallow: /_stats/
+Disallow: /_a/
+
+# Einladungslinks und OAuth-Rückläufer sind personenbezogen und wertlos für die Suche
+Disallow: /*?join=
+Disallow: /*?code=
+Disallow: /*?shared=
+Disallow: /*?autogen=
+
+Sitemap: https://emphasize.me/sitemap.xml

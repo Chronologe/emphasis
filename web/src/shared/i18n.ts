@@ -179,6 +179,11 @@ const de = {
     'Die Datenverarbeitung durch TIDAL selbst unterliegt der Datenschutzerklärung der TIDAL Music AS. Betreiber-Kontakt: github.com/Chronologe.',
   ],
   privacyClose: 'Zurück',
+  analyticsStatusOn: 'Anonyme Messung: aktiv',
+  analyticsStatusOff: 'Anonyme Messung: deaktiviert',
+  analyticsTurnOff: 'deaktivieren',
+  analyticsTurnOn: 'aktivieren',
+  analyticsBrowserNote: 'durch deine Browsereinstellung (Do Not Track)',
 
   // ---------- Gemeinsame Playlist ----------
   sharedHeroPrefix: 'Eine Tidal-Playlist,',
@@ -411,6 +416,11 @@ const en: typeof de = {
     'Data processing by TIDAL itself is subject to the privacy policy of TIDAL Music AS. Operator contact: github.com/Chronologe.',
   ],
   privacyClose: 'Back',
+  analyticsStatusOn: 'Anonymous analytics: on',
+  analyticsStatusOff: 'Anonymous analytics: off',
+  analyticsTurnOff: 'turn off',
+  analyticsTurnOn: 'turn on',
+  analyticsBrowserNote: 'by your browser setting (Do Not Track)',
 
   // ---------- Shared playlist ----------
   sharedHeroPrefix: 'One Tidal playlist,',

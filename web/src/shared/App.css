@@ -826,6 +826,26 @@ button.linklike {
   cursor: pointer;
 }
 
+/* ---------- Anonyme Messung (im Datenschutz-Abschnitt) ---------- */
+
+.analytics-status {
+  margin-top: 1.2rem;
+  margin-bottom: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+/* Mint bleibt dem Datenschutz-Link in der Fußzeile vorbehalten – hier leise */
+.analytics-status button.linklike {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.analytics-status button.linklike:hover {
+  color: var(--text);
+}
+
 /* ---------- Eintritts-Animationen ---------- */
 
 .rise {

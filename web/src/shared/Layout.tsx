@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { LayoutGrid, LogOut, MessageSquarePlus } from 'lucide-react';
+import { analyticsOptedOut, browserSaysNo, setAnalyticsOptOut } from './analytics';
 import { logout } from './auth';
 import ContactDialog from './ContactDialog';
 import GithubIcon from './GithubIcon';
@@ -13,6 +14,39 @@ import LanguageSwitch from './LanguageSwitch';
  * Gemeinsamer Rahmen beider Tools: Hintergrund-Collage, Kopfleiste mit Logo
  * (führt zur Startseite) und Fußzeile mit Marken-Hinweis und Datenschutz.
  */
+/**
+ * Zustand und Schalter der anonymen Messung – steht im Datenschutz-Abschnitt,
+ * weil er dorthin gehört und nicht in die Fußzeile jeder Seite.
+ */
+function AnalyticsToggle() {
+  const [optedOut, setOptedOut] = useState(analyticsOptedOut);
+  // Das Browsersignal sticht die eigene Entscheidung; dann wäre ein Schalter irreführend
+  const byBrowser = browserSaysNo();
+
+  return (
+    <p className="muted analytics-status">
+      {optedOut ? t.analyticsStatusOff : t.analyticsStatusOn}
+      {byBrowser ? (
+        <> — {t.analyticsBrowserNote}</>
+      ) : (
+        <>
+          {' — '}
+          <button
+            className="linklike"
+            onClick={() => {
+              const next = !optedOut;
+              setAnalyticsOptOut(next);
+              setOptedOut(next);
+            }}
+          >
+            {optedOut ? t.analyticsTurnOn : t.analyticsTurnOff}
+          </button>
+        </>
+      )}
+    </p>
+  );
+}
+
 export default function Layout({
   children,
   coverUrls = [],
@@ -113,6 +147,7 @@ export default function Layout({
                 {paragraph}
               </p>
             ))}
+            <AnalyticsToggle />
             <button className="ghost" onClick={() => setShowPrivacy(false)}>
               {t.privacyClose}
             </button>

@@ -17,7 +17,17 @@ export type TrackInfo = {
    * erkannt worden. `undefined` darf deshalb nie wie `true` behandelt werden.
    */
   ai?: boolean;
+  /**
+   * Dieselbe Kennzeichnung auf Album-Ebene (`Albums_Attributes.ai`). Ein als
+   * KI ausgewiesenes Album macht auch seine Titel zu KI-Produktionen – das
+   * Feld dient als zweite Quelle, falls die Track-Ebene sie nicht mitliefert.
+   */
+  albumAi?: boolean;
 };
+
+function boolOrUndefined(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
 
 export function relationshipIds(resource: JsonApiResource, name: string): string[] {
   const relation = resource.relationships?.[name]?.data;
@@ -34,6 +44,17 @@ export async function fetchTrackDetails(
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<Map<string, TrackInfo>> {
   const result = new Map<string, TrackInfo>();
+  /*
+   * Diagnose zur KI-Kennzeichnung: `ai` ist in Tidals Schema optional. Fehlt es
+   * in der Antwort, gibt es zwei mögliche Gründe – die API liefert es gar nicht,
+   * oder sie lässt `false` einfach weg. Unterscheiden lässt sich das über
+   * `explicit`: ein Pflicht-Boolean. Kommt irgendwo ein `explicit: false` an,
+   * überträgt die API falsche Boolesche Werte – dann bedeutet ein fehlendes
+   * `ai` tatsächlich, dass es nicht ausgeliefert wird.
+   */
+  const seenTrackFields = new Set<string>();
+  const seenAlbumFields = new Set<string>();
+  let falseBooleanSeen = false;
   const uniqueIds = [...new Set(trackIds)];
   const batches = chunk(uniqueIds, 20);
 
@@ -72,11 +93,25 @@ export async function fetchTrackDetails(
           .filter(Boolean)
           .map(String),
         popularity: typeof track.attributes?.popularity === 'number' ? track.attributes.popularity : undefined,
-        ai: typeof track.attributes?.ai === 'boolean' ? track.attributes.ai : undefined,
+        ai: boolOrUndefined(track.attributes?.ai),
+        albumAi: boolOrUndefined(album?.attributes?.ai),
       });
+
+      // Diagnose (siehe reportFieldCoverage): welche Attribute kommen überhaupt an?
+      Object.keys(track.attributes ?? {}).forEach((key) => seenTrackFields.add(key));
+      Object.keys(album?.attributes ?? {}).forEach((key) => seenAlbumFields.add(key));
+      if (track.attributes?.explicit === false) falseBooleanSeen = true;
     }
     onProgress?.(Math.min((batchIndex + 1) * 20, uniqueIds.length), uniqueIds.length);
   }
+
+  console.info(
+    `[tracks] gelieferte Track-Attribute: ${[...seenTrackFields].sort().join(', ') || '(keine)'}`,
+  );
+  console.info(
+    `[tracks] gelieferte Album-Attribute: ${[...seenAlbumFields].sort().join(', ') || '(keine)'} ` +
+      `| "explicit: false" gesehen: ${falseBooleanSeen ? 'ja' : 'nein'}`,
+  );
 
   await fillGenresFromAlbums(result);
   return result;

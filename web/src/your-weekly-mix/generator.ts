@@ -292,9 +292,12 @@ export async function generateMix(
   let aiSkipped = 0;
   for (const track of details.values()) {
     if (isExcludedContent(track)) continue;
-    // Harter Ausschluss vor der Bewertung: gekennzeichnete KI-Titel kommen
-    // gar nicht erst in den Kandidatenpool
-    if (!includeAiTracks && track.ai === true) {
+    /*
+     * Harter Ausschluss vor der Bewertung. Tidal kennzeichnet auf Track- UND
+     * Album-Ebene; ein KI-Album macht auch seine Titel zu KI-Produktionen.
+     * Beide Quellen zählen, weil die Track-Ebene das Feld nicht immer mitliefert.
+     */
+    if (!includeAiTracks && (track.ai === true || track.albumAi === true)) {
       aiSkipped++;
       continue;
     }
@@ -347,9 +350,12 @@ export async function generateMix(
    * keinen einzigen Kandidaten, ist der Filter wirkungslos – das soll sichtbar
    * sein und nicht als "keine KI-Titel gefunden" missverstanden werden.
    */
-  const aiFlagPresent = [...details.values()].filter((track) => track.ai !== undefined).length;
+  const all = [...details.values()];
+  const aiFlagPresent = all.filter((track) => track.ai !== undefined).length;
+  const albumFlagPresent = all.filter((track) => track.albumAi !== undefined).length;
   console.info(
-    `[score] KI-Kennzeichnung: ${aiFlagPresent}/${details.size} Kandidaten mit Feld, ` +
+    `[score] KI-Kennzeichnung: Track-Feld bei ${aiFlagPresent}/${details.size}, ` +
+      `Album-Feld bei ${albumFlagPresent}/${details.size}, ` +
       `${aiSkipped} ausgeschlossen (Zulassen: ${includeAiTracks ? 'ja' : 'nein'})`,
   );
   console.info(

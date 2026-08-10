@@ -7,6 +7,20 @@ const PREVIOUS_MIXES_STORAGE_KEY = 'twm-previous-mix-track-ids';
 const MIX_STATE_STORAGE_KEY = 'twm-mix-state';
 /** Verwaltungs-Key der Automatik – berechtigt zu den /api/autogen/-Aufrufen */
 export const AUTOGEN_KEY_STORAGE = 'twm-autogen-key';
+
+/**
+ * Der Verwaltungs-Key wird genau einmal ausgegeben – bei der Rückkehr aus dem
+ * Aktivierungs-Login – und liegt danach nur in *diesem* Browser. Auf einem
+ * anderen Gerät oder nach geleertem Speicher fehlt er, und alle verwaltenden
+ * Aufrufe (Einstellung ändern, deaktivieren) laufen in ein 403.
+ */
+export function hasAutogenKey(): boolean {
+  try {
+    return Boolean(localStorage.getItem(AUTOGEN_KEY_STORAGE));
+  } catch {
+    return false;
+  }
+}
 export const PLAYLIST_NAME = t.playlistName;
 
 export type MixState = {

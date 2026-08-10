@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { login } from '../shared/auth';
 import { buildInputSet, type InputSet } from './inputSet';
 import { generateMix, type MixResult } from './generator';
-import { AUTOGEN_KEY_STORAGE, saveMixAsPlaylist, type CoverStatus } from './playlist';
+import { AUTOGEN_KEY_STORAGE, hasAutogenKey, saveMixAsPlaylist, type CoverStatus } from './playlist';
 import { loadMixMemory, rememberMix, type MixMemory } from './mixMemory';
 import { fetchCoverUrls } from '../shared/covers';
 import { formatDate, IS_GERMAN, t } from '../shared/i18n';
@@ -130,7 +130,14 @@ export default function WeeklyMix({
   /** Umschalten; bei aktiver Automatik sofort serverseitig festhalten */
   async function handleAiToggle(next: boolean) {
     setIncludeAiTracks(next);
+    setWarning('');
     if (autogen === 'unavailable' || autogen === null || !autogen.enabled) return;
+
+    // Ohne Verwaltungs-Key gäbe es nur ein 403 – gar nicht erst fragen
+    if (!hasAutogenKey()) {
+      setWarning(t.autogenKeyMissing);
+      return;
+    }
     try {
       const response = await fetch('/api/autogen/settings', {
         method: 'POST',
@@ -141,12 +148,17 @@ export default function WeeklyMix({
           includeAiTracks: next,
         }),
       });
+      // 403 = Key veraltet: die Einstellung gilt trotzdem für den Knopf hier,
+      // nur die Automatik übernimmt sie nicht. Kästchen deshalb stehen lassen.
+      if (response.status === 403) {
+        setWarning(t.autogenKeyMissing);
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
       setAutogen({ ...autogen, includeAiTracks: next });
     } catch {
-      // Server hat es nicht übernommen – Anzeige zurückdrehen, sonst lügt sie
       setIncludeAiTracks(!next);
-      setError(t.autogenError);
+      setError(t.autogenSettingsError);
     }
   }
 
@@ -157,6 +169,11 @@ export default function WeeklyMix({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, key: localStorage.getItem(AUTOGEN_KEY_STORAGE) ?? '' }),
       });
+      // Gleiche Ursache wie beim Umschalten: ohne gültigen Key kein Zugriff
+      if (response.status === 403) {
+        setWarning(t.autogenKeyMissing);
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
       localStorage.removeItem(AUTOGEN_KEY_STORAGE);
       setAutogen({ enabled: false });
@@ -306,6 +323,16 @@ export default function WeeklyMix({
                           ? t.autogenRunSoon
                           : t.autogenFirstRunSoon}
                     </p>
+                    {/* Ohne Key ist die Automatik von hier aus weder umzustellen
+                        noch abzuschalten – erneutes Verbinden gibt ihn zurück */}
+                    {!hasAutogenKey() && (
+                      <>
+                        <p className="muted">{t.autogenKeyMissing}</p>
+                        <button className="primary" onClick={handleAutogenEnable}>
+                          {t.autogenReconnect}
+                        </button>
+                      </>
+                    )}
                     <button className="ghost" onClick={() => void handleAutogenDisable()}>
                       {t.autogenDisable}
                     </button>

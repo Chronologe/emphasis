@@ -155,8 +155,9 @@ Every member can pause their own sync or leave via *Leave & delete data*, which 
 all of their server-side data immediately.
 
 Both playlists carry a timestamp at the end of their description —
-`Last created DD.MM.YYYY` for the weekly mix, `Last synced HH:MM DD.MM.YYYY` for a shared
-playlist (localised).
+`Last created HH:MM DD.MM.YYYY` for the weekly mix, `Last synced HH:MM DD.MM.YYYY` for a
+shared playlist (localised). The weekly mix includes the time because it can be generated
+manually more than once a day.
 
 ---
 

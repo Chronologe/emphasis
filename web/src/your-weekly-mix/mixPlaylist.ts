@@ -6,10 +6,7 @@ import {
 } from '../shared/playlistItems';
 import { apiGetPaginated, apiPatch, indexIncluded } from '../shared/tidalClient';
 
-import { weeklyMixDescription, type Lang } from '../shared/descriptions';
-
-/** Codewort in der Beschreibung, an dem die eigene Mix-Playlist erkannt wird */
-const MIX_CODEWORD = 'emphasis';
+import { isEmphasisDescription, weeklyMixDescription, type Lang } from '../shared/descriptions';
 
 /**
  * Fallback laut Spezifikation: Ist keine (gültige) Playlist-ID gemerkt, wird die
@@ -31,7 +28,7 @@ export async function findExistingMixPlaylist(userId: string): Promise<string | 
       if (attributes?.name && KNOWN_MIX_PLAYLIST_NAMES.includes(attributes.name.trim())) {
         return playlist.id;
       }
-      if (attributes?.description?.toLowerCase().includes(MIX_CODEWORD)) return playlist.id;
+      if (isEmphasisDescription(attributes?.description)) return playlist.id;
     }
   } catch {
     // Fallback-Suche fehlgeschlagen → neue Playlist wird angelegt

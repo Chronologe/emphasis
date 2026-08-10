@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { login } from '../shared/auth';
 import { formatDate, t } from '../shared/i18n';
+import { isEmphasisDescription } from '../shared/descriptions';
 import { fetchOwnPlaylists, type PlaylistInfo } from '../shared/playlistItems';
 import { ROUTES } from '../shared/router';
 import SeoContent from '../shared/SeoContent';
@@ -32,8 +33,7 @@ import InviteCard from './InviteCard';
 
 /** Nur eigene Playlists anbieten, nicht die automatisch erzeugten */
 function isOfferable(playlist: PlaylistInfo): boolean {
-  const description = (playlist.description ?? '').toLowerCase();
-  return !description.includes('emphasis');
+  return !isEmphasisDescription(playlist.description);
 }
 
 export default function SharedPlaylist({

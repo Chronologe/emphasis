@@ -1,3 +1,4 @@
+import { isEmphasisDescription } from '../shared/descriptions';
 import { KNOWN_MIX_PLAYLIST_NAMES, t } from '../shared/i18n';
 import { apiGetPaginated, indexIncluded, type JsonApiResource } from '../shared/tidalClient';
 import { fetchTrackDetails, type TrackInfo } from '../shared/tracks';
@@ -41,8 +42,6 @@ const MAX_ITEMS_PER_PLAYLIST = 300;
 const MAX_FAVORITES = 1000;
 /** So viele der jüngsten Tracks werden für die Interpreten-Menge detailliert geladen */
 const HEARD_ARTIST_SAMPLE = 300;
-/** Codewort zur Erkennung der eigenen Mix-Playlist (laut Spezifikation) */
-const MIX_CODEWORD = 'emphasis';
 
 type DatedTrackId = { id: string; addedAt: number };
 
@@ -63,7 +62,7 @@ function isMixPlaylist(
   const name = details?.attributes?.name;
   if (typeof name === 'string' && KNOWN_MIX_PLAYLIST_NAMES.includes(name.trim())) return true;
   const description = details?.attributes?.description;
-  return typeof description === 'string' && description.toLowerCase().includes(MIX_CODEWORD);
+  return isEmphasisDescription(typeof description === 'string' ? description : undefined);
 }
 
 export async function buildInputSet(

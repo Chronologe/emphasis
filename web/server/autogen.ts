@@ -149,6 +149,15 @@ export async function runDueGenerations(): Promise<void> {
 
 // ---------- HTTP ----------
 
+/**
+ * Abgewiesenen Verwaltungszugriff protokollieren. Häufigste Ursache ist ein
+ * fehlender Verwaltungs-Key im Browser (anderes Gerät, geleerter Speicher) –
+ * ohne diese Zeile ist das von außen nicht von einem Angriff zu unterscheiden.
+ */
+function denied(path: string, userId?: string): void {
+  console.warn(`[autogen] Abgewiesen: ${path} für ${userId ?? '(ohne ID)'} – Key fehlt oder passt nicht`);
+}
+
 // Teilt sich den Callback-Pfad mit den anderen Server-Flüssen (siehe common.ts)
 const loginStore = createLoginStore<{
   playlistId?: string;
@@ -211,6 +220,7 @@ export async function handleAutogenRequest(
     const { userId, key } = await readJsonBody<{ userId?: string; key?: string }>(request);
     const user = userId ? loadUser(userId) : undefined;
     if (!user || user.mgmtKey !== key) {
+      denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
     }
@@ -232,6 +242,7 @@ export async function handleAutogenRequest(
     }>(request);
     const user = userId ? loadUser(userId) : undefined;
     if (!user || user.mgmtKey !== key) {
+      denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
     }
@@ -264,6 +275,7 @@ export async function handleAutogenRequest(
     }>(request);
     const user = userId ? loadUser(userId) : undefined;
     if (!user || user.mgmtKey !== key) {
+      denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
     }
@@ -278,6 +290,7 @@ export async function handleAutogenRequest(
     const { userId, key } = await readJsonBody<{ userId?: string; key?: string }>(request);
     const user = userId ? loadUser(userId) : undefined;
     if (!user || user.mgmtKey !== key) {
+      denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
     }

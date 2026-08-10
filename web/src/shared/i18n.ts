@@ -140,8 +140,7 @@ const de = {
     'Die Playlist wurde gespeichert, der Server konnte sie aber nicht vermerken. Beim nächsten Mix können sich einzelne Titel wiederholen.',
   autogenSettingsError: 'Die Einstellung konnte nicht gespeichert werden.',
   autogenKeyMissing:
-    'Die Automatik läuft, aber dieser Browser hat keinen gültigen Verwaltungsschlüssel – er entsteht nur beim Aktivieren und bleibt lokal. Deine Auswahl gilt hier sofort; damit die Automatik sie übernimmt (und du sie abschalten kannst), verbinde einmal erneut.',
-  autogenReconnect: 'Erneut verbinden',
+    'Der Server hat die Änderung abgelehnt – deine Anmeldung ließ sich nicht bestätigen. Deine Auswahl gilt hier sofort; für die Automatik melde dich neu an und versuche es erneut.',
   autogenRunSoon: 'Die nächste Generierung steht an und läuft innerhalb der nächsten Stunde.',
   autogenFirstRunSoon:
     'Deine Playlist wird innerhalb der nächsten Stunde zum ersten Mal erstellt – du musst nichts weiter tun. Danach jede Woche neu.',
@@ -392,8 +391,7 @@ const en: typeof de = {
     'The playlist was saved, but the server could not record it. Individual tracks may repeat in your next mix.',
   autogenSettingsError: 'The setting could not be saved.',
   autogenKeyMissing:
-    'The automation is running, but this browser holds no valid management key – it is issued only when you activate and stays local. Your choice applies here right away; to have the automation pick it up (and to be able to switch it off), reconnect once.',
-  autogenReconnect: 'Reconnect',
+    'The server rejected the change – your sign-in could not be confirmed. Your choice applies here right away; for the automation, sign in again and retry.',
   autogenRunSoon: 'The next generation is due and will run within the hour.',
   autogenFirstRunSoon:
     'Your playlist will be created for the first time within the hour – nothing else to do. After that, it refreshes weekly.',

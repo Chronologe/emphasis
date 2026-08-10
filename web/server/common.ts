@@ -81,6 +81,39 @@ export async function exchangeToken(
   return (await response.json()) as Record<string, unknown>;
 }
 
+/**
+ * Wem gehört dieses Access-Token? Fragt Tidal nach `/users/me` – laut
+ * API-Spezifikation steht `me` ausdrücklich für „die eigene Ressource des
+ * angemeldeten Nutzers", die Antwort ist also eine belastbare Identität.
+ *
+ * Dient als zweiter Weg neben dem Verwaltungs-Key: der liegt nur in dem
+ * Browser, in dem aktiviert wurde, und fehlt auf jedem anderen Gerät. Wer
+ * angemeldet ist, soll seine eigene Automatik überall verwalten können.
+ *
+ * Gibt bei jedem Zweifel `undefined` zurück – lieber ablehnen als falsch zuordnen.
+ */
+export async function tidalUserIdOfToken(accessToken: string): Promise<string | undefined> {
+  if (!accessToken) return undefined;
+  try {
+    const response = await fetch('https://openapi.tidal.com/v2/users/me', {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/vnd.api+json' },
+    });
+    if (!response.ok) return undefined;
+    const document = (await response.json()) as { data?: { id?: unknown } | { id?: unknown }[] };
+    const data = Array.isArray(document.data) ? document.data[0] : document.data;
+    const id = data?.id;
+    return typeof id === 'string' && id ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Bearer-Token aus dem Authorization-Header, falls vorhanden */
+export function bearerToken(request: IncomingMessage): string {
+  const header = request.headers.authorization ?? '';
+  return header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+}
+
 /** Access-Token aus einem Refresh-Token holen; liefert ggf. ein erneuertes Refresh-Token */
 export async function refreshAccessToken(
   refreshToken: string,

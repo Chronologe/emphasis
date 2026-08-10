@@ -18,6 +18,7 @@ import {
   DATA_DIR,
   MAX_USERS,
   OAUTH_CALLBACK_PATHS,
+  bearerToken,
   createLoginStore,
   hasFreeDisk,
   isValidId,
@@ -26,6 +27,7 @@ import {
   redirect,
   refreshAccessToken,
   sendJson,
+  tidalUserIdOfToken,
 } from './common';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -155,7 +157,34 @@ export async function runDueGenerations(): Promise<void> {
  * ohne diese Zeile ist das von außen nicht von einem Angriff zu unterscheiden.
  */
 function denied(path: string, userId?: string): void {
-  console.warn(`[autogen] Abgewiesen: ${path} für ${userId ?? '(ohne ID)'} – Key fehlt oder passt nicht`);
+  console.warn(`[autogen] Abgewiesen: ${path} für ${userId ?? '(ohne ID)'} – weder Key noch Token gültig`);
+}
+
+/**
+ * Zugriff auf den eigenen Datensatz. Zwei gleichwertige Nachweise:
+ *
+ *  1. der Verwaltungs-Key – liegt nur in dem Browser, in dem aktiviert wurde
+ *  2. das Tidal-Access-Token des angemeldeten Nutzers – funktioniert überall
+ *
+ * Der zweite Weg ist der Grund für diese Funktion: ohne ihn konnte, wer den
+ * Key verloren hatte, seine Automatik weder umstellen noch abschalten – und
+ * der Browser bekam den servergeführten Mix-Zustand nicht zu sehen, wodurch
+ * manuelle Läufe Titel wiederholten, die der Server längst vergeben hatte.
+ */
+async function authorizedUser(
+  request: IncomingMessage,
+  userId: string | undefined,
+  key: string | undefined,
+): Promise<UserRecord | undefined> {
+  if (!userId) return undefined;
+  const user = loadUser(userId);
+  if (!user) return undefined;
+  if (key && user.mgmtKey === key) return user;
+
+  const token = bearerToken(request);
+  if (!token) return undefined;
+  const tokenUserId = await tidalUserIdOfToken(token);
+  return tokenUserId === userId ? user : undefined;
 }
 
 // Teilt sich den Callback-Pfad mit den anderen Server-Flüssen (siehe common.ts)
@@ -218,8 +247,8 @@ export async function handleAutogenRequest(
    */
   if (request.method === 'POST' && path === '/api/autogen/state') {
     const { userId, key } = await readJsonBody<{ userId?: string; key?: string }>(request);
-    const user = userId ? loadUser(userId) : undefined;
-    if (!user || user.mgmtKey !== key) {
+    const user = await authorizedUser(request, userId, key);
+    if (!user) {
       denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
@@ -240,8 +269,8 @@ export async function handleAutogenRequest(
       playlistId?: string;
       countAsRun?: boolean;
     }>(request);
-    const user = userId ? loadUser(userId) : undefined;
-    if (!user || user.mgmtKey !== key) {
+    const user = await authorizedUser(request, userId, key);
+    if (!user) {
       denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
@@ -273,8 +302,8 @@ export async function handleAutogenRequest(
       key?: string;
       includeAiTracks?: boolean;
     }>(request);
-    const user = userId ? loadUser(userId) : undefined;
-    if (!user || user.mgmtKey !== key) {
+    const user = await authorizedUser(request, userId, key);
+    if (!user) {
       denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;
@@ -288,8 +317,8 @@ export async function handleAutogenRequest(
 
   if (request.method === 'POST' && path === '/api/autogen/disable') {
     const { userId, key } = await readJsonBody<{ userId?: string; key?: string }>(request);
-    const user = userId ? loadUser(userId) : undefined;
-    if (!user || user.mgmtKey !== key) {
+    const user = await authorizedUser(request, userId, key);
+    if (!user) {
       denied(path, userId);
       sendJson(response, 403, { error: 'forbidden' });
       return true;

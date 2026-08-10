@@ -8,6 +8,7 @@
  *    hinein. Sonst hätten beide getrennte Ausschlusslisten und würden einander
  *    Titel wiederholen – und ein manuell erzeugter Mix wäre dem Server unbekannt.
  */
+import { getAccessToken } from '../shared/auth';
 import {
   AUTOGEN_KEY_STORAGE,
   getMixState,
@@ -35,12 +36,19 @@ function localMemory(): MixMemory {
   return { onServer: false, playlistId: getMixState().playlistId, previousMixIds: getPreviousMixIds() };
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+/**
+ * Aufruf an die eigene API. Das Tidal-Token geht mit, damit der Server die
+ * Identität auch dann prüfen kann, wenn dieser Browser keinen Verwaltungs-Key
+ * hat (anderes Gerät, geleerter Speicher).
+ */
+export async function post<T>(path: string, body: unknown): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    headers.Authorization = `Bearer ${await getAccessToken()}`;
+  } catch {
+    // Nicht angemeldet – dann muss der Verwaltungs-Key im Body reichen
+  }
+  const response = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!response.ok) throw new Error(String(response.status));
   return (await response.json()) as T;
 }
@@ -51,8 +59,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * veralteter Ausschluss ist besser als ein unbenutzbares Werkzeug.
  */
 export async function loadMixMemory(userId: string, autogenEnabled: boolean): Promise<MixMemory> {
+  // Kein Verwaltungs-Key nötig: das mitgesendete Tidal-Token weist die Identität nach
   const key = mgmtKey();
-  if (!autogenEnabled || !key) return localMemory();
+  if (!autogenEnabled) return localMemory();
 
   try {
     const state = await post<{ playlistId?: string; previousMixIds?: string[] }>(

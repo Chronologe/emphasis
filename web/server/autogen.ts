@@ -43,6 +43,11 @@ type UserRecord = {
   previousMixIds: string[];
   lastRunAt?: string;
   lastError?: string;
+  /**
+   * Vom Nutzer gesetzt: KI-gekennzeichnete Titel zulassen. Fehlt das Feld
+   * (Datensätze aus der Zeit davor), gilt der sichere Standard `false`.
+   */
+  includeAiTracks?: boolean;
 };
 
 function userFile(userId: string): string {
@@ -81,7 +86,9 @@ async function runGenerationForUser(user: UserRecord): Promise<void> {
   setTokenProvider(async () => accessToken);
 
   const inputSet = await buildInputSet(user.userId, user.playlistId, () => {});
-  const result = await generateMix(inputSet, new Set(user.previousMixIds), () => {});
+  const result = await generateMix(inputSet, new Set(user.previousMixIds), () => {}, {
+    includeAiTracks: user.includeAiTracks ?? false,
+  });
   if (result.tracks.length === 0) throw new Error('Keine passenden Tracks gefunden');
   if (result.warning) console.warn(`[autogen] ${user.userId}: ${result.warning}`);
   console.log(
@@ -108,6 +115,17 @@ async function runGenerationForUser(user: UserRecord): Promise<void> {
   );
 }
 
+/**
+ * Zeitpunkt des nächsten planmäßigen Laufs – oder `undefined`, wenn er bereits
+ * fällig ist (noch nie gelaufen oder Woche überschritten). Dieselbe Bedingung
+ * wie in `runDueGenerations`, damit Anzeige und Planung nicht auseinanderlaufen.
+ */
+function scheduledNextRun(user: UserRecord): string | undefined {
+  if (!user.lastRunAt) return undefined;
+  const next = new Date(user.lastRunAt).getTime() + WEEK_MS;
+  return next <= Date.now() ? undefined : new Date(next).toISOString();
+}
+
 export async function runDueGenerations(): Promise<void> {
   if (generationRunning) return;
   generationRunning = true;
@@ -132,7 +150,11 @@ export async function runDueGenerations(): Promise<void> {
 // ---------- HTTP ----------
 
 // Teilt sich den Callback-Pfad mit den anderen Server-Flüssen (siehe common.ts)
-const loginStore = createLoginStore<{ playlistId?: string; lang: 'de' | 'en' }>();
+const loginStore = createLoginStore<{
+  playlistId?: string;
+  lang: 'de' | 'en';
+  includeAiTracks: boolean;
+}>();
 
 export async function handleAutogenRequest(
   request: IncomingMessage,
@@ -156,6 +178,8 @@ export async function handleAutogenRequest(
       loginStore.begin(request, {
         playlistId: url.searchParams.get('playlistId') || undefined,
         lang: url.searchParams.get('lang') === 'de' ? 'de' : 'en',
+        // alles außer einer ausdrücklichen 1 heißt: keine KI-Titel
+        includeAiTracks: url.searchParams.get('ai') === '1',
       }),
     );
     return true;
@@ -163,7 +187,90 @@ export async function handleAutogenRequest(
 
   if (request.method === 'GET' && path.startsWith('/api/autogen/status/')) {
     const user = loadUser(path.split('/').pop() ?? '');
-    sendJson(response, 200, { enabled: Boolean(user?.enabled), lastRunAt: user?.lastRunAt });
+    sendJson(response, 200, {
+      enabled: Boolean(user?.enabled),
+      lastRunAt: user?.lastRunAt,
+      includeAiTracks: Boolean(user?.includeAiTracks),
+      // Fehlt das Feld, ist der Lauf bereits fällig und kommt beim nächsten Tick
+      nextRunAt: user?.enabled ? scheduledNextRun(user) : undefined,
+    });
+    return true;
+  }
+
+  /*
+   * Mix-Gedächtnis lesen. Sobald die Automatik läuft, arbeitet auch der
+   * manuelle Lauf im Browser gegen diesen Zustand statt gegen localStorage –
+   * sonst hätten Browser und Server getrennte Ausschlusslisten und würden
+   * einander Titel wiederholen.
+   *
+   * Bewusst POST mit Verwaltungs-Key: previousMixIds sind Nutzerdaten und
+   * gehören nicht hinter einen ungeschützten GET (der Status-Endpunkt liefert
+   * nur unkritische Eckdaten).
+   */
+  if (request.method === 'POST' && path === '/api/autogen/state') {
+    const { userId, key } = await readJsonBody<{ userId?: string; key?: string }>(request);
+    const user = userId ? loadUser(userId) : undefined;
+    if (!user || user.mgmtKey !== key) {
+      sendJson(response, 403, { error: 'forbidden' });
+      return true;
+    }
+    sendJson(response, 200, {
+      playlistId: user.playlistId,
+      previousMixIds: user.previousMixIds,
+    });
+    return true;
+  }
+
+  // Ergebnis eines manuellen Laufs im Browser übernehmen
+  if (request.method === 'POST' && path === '/api/autogen/record') {
+    const { userId, key, trackIds, playlistId, countAsRun } = await readJsonBody<{
+      userId?: string;
+      key?: string;
+      trackIds?: unknown;
+      playlistId?: string;
+      countAsRun?: boolean;
+    }>(request);
+    const user = userId ? loadUser(userId) : undefined;
+    if (!user || user.mgmtKey !== key) {
+      sendJson(response, 403, { error: 'forbidden' });
+      return true;
+    }
+    const ids = Array.isArray(trackIds)
+      ? trackIds.filter((id): id is string => typeof id === 'string' && isValidId(id))
+      : [];
+    user.previousMixIds = [...new Set([...user.previousMixIds, ...ids])].slice(-PREVIOUS_IDS_CAP);
+    if (typeof playlistId === 'string' && playlistId) user.playlistId = playlistId;
+    /*
+     * Ein manueller Lauf zählt als der Lauf dieser Woche. Ohne das würde der
+     * Scheduler eine fällige Generierung Stunden später darüberschreiben und
+     * die eben erzeugte Playlist wäre weg.
+     */
+    if (countAsRun === true) user.lastRunAt = new Date().toISOString();
+    saveUser(user);
+    console.log(
+      `[autogen] Nutzer ${userId}: ${ids.length} Titel übernommen ` +
+        `(${user.previousMixIds.length} gemerkt${countAsRun === true ? ', zählt als Wochenlauf' : ''})`,
+    );
+    sendJson(response, 200, { previousMixIds: user.previousMixIds, nextRunAt: scheduledNextRun(user) });
+    return true;
+  }
+
+  // Einstellung nachträglich ändern, ohne den OAuth-Fluss zu wiederholen
+  if (request.method === 'POST' && path === '/api/autogen/settings') {
+    const { userId, key, includeAiTracks } = await readJsonBody<{
+      userId?: string;
+      key?: string;
+      includeAiTracks?: boolean;
+    }>(request);
+    const user = userId ? loadUser(userId) : undefined;
+    if (!user || user.mgmtKey !== key) {
+      sendJson(response, 403, { error: 'forbidden' });
+      return true;
+    }
+    user.includeAiTracks = includeAiTracks === true;
+    saveUser(user);
+    console.log(`[autogen] Nutzer ${userId}: KI-Titel ${user.includeAiTracks ? 'erlaubt' : 'gesperrt'}`);
+    sendJson(response, 200, { includeAiTracks: user.includeAiTracks });
     return true;
   }
 
@@ -217,9 +324,13 @@ async function handleCallback(
       playlistId: data.playlistId || existing?.playlistId,
       previousMixIds: existing?.previousMixIds ?? [],
       lastRunAt: existing?.lastRunAt,
+      includeAiTracks: data.includeAiTracks,
     };
     saveUser(record);
-    console.log(`[autogen] Nutzer ${userId} aktiviert (lang=${record.lang})`);
+    console.log(
+      `[autogen] Nutzer ${userId} aktiviert (lang=${record.lang}, ` +
+        `KI-Titel ${record.includeAiTracks ? 'erlaubt' : 'gesperrt'})`,
+    );
     redirect(response, `${appPath(data.lang)}?autogen=enabled&key=${record.mgmtKey}`);
   } catch (error) {
     console.error('[autogen] Callback-Fehler:', error);

@@ -9,6 +9,8 @@ export type ScoreContext = {
   allPlaylistTrackIds: Set<string>;
   /** Artist-IDs, die bereits in Playlists/Favoriten vorkommen (+30-Regel, ID-Vergleich!) */
   heardArtistIds: Set<string>;
+  /** Artist-IDs, von denen schon ein Titel in einer Playlist liegt (Top-Song-Bonus) */
+  playlistArtistIds: Set<string>;
   /** Von Tidal als "ähnlich" eingestufte, noch nicht gehörte Interpreten ("neue Interpreten") */
   newArtistIds: Set<string>;
   /** Genres, die der Nutzer hört (+5-Regel) */
@@ -22,6 +24,8 @@ export type SongScoreBreakdown = {
   heardArtist: number;
   recency: number;
   topRank: number;
+  /** Aufschlag für Top-Songs von Interpreten, die noch in keiner Playlist stehen */
+  unsavedArtistTop: number;
   genre: number;
   total: number;
 };
@@ -109,6 +113,17 @@ export function songScore(track: TrackInfo, context: ScoreContext): SongScoreBre
     else if (rank <= 20) topRank = 10;
   }
 
+  /*
+   * Ein bekannter Titel eines Interpreten, von dem noch nichts in einer
+   * Playlist liegt, ist die größere Entdeckung als eine beliebige Neuerscheinung.
+   * Der Aufschlag hebt solche Songs bewusst über die Neuheitspunkte:
+   * Top 10 → 15+10 = 25 gegenüber 15 (≤3 Monate), Top 20 → 10+8 = 18 gegenüber 10.
+   */
+  let unsavedArtistTop = 0;
+  if (topRank > 0 && !track.artistIds.some((id) => context.playlistArtistIds.has(id))) {
+    unsavedArtistTop = rank !== undefined && rank <= 10 ? 10 : 8;
+  }
+
   const genre = track.genres.some((g) => context.userGenres.has(g)) ? 5 : 0;
 
   return {
@@ -116,8 +131,9 @@ export function songScore(track: TrackInfo, context: ScoreContext): SongScoreBre
     heardArtist,
     recency,
     topRank,
+    unsavedArtistTop,
     genre,
-    total: notInPlaylist + heardArtist + recency + topRank + genre,
+    total: notInPlaylist + heardArtist + recency + topRank + unsavedArtistTop + genre,
   };
 }
 

@@ -826,6 +826,33 @@ button.linklike {
   cursor: pointer;
 }
 
+/* ---------- Option mit Kontrollkästchen ---------- */
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.2rem 0 1rem;
+  cursor: pointer;
+  font-size: 0.93rem;
+}
+
+.option input[type='checkbox'] {
+  /* Größe und Farbe des Systemkästchens an das Marken-Design angleichen */
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.12rem;
+  flex-shrink: 0;
+  accent-color: var(--accent-dark);
+  cursor: pointer;
+}
+
+.option-hint {
+  display: block;
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
 /* ---------- Anonyme Messung (im Datenschutz-Abschnitt) ---------- */
 
 .analytics-status {

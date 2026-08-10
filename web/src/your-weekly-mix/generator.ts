@@ -205,11 +205,23 @@ function swapLocalSearch(
   return best;
 }
 
+export type MixOptions = {
+  /**
+   * KI-generierte Titel zulassen. Standard ist `false` – Tidal kennzeichnet
+   * solche Aufnahmen über `Tracks_Attributes.ai`, und ungefragt sollen sie
+   * nicht im Mix landen. Das Feld ist optional: fehlt es, gilt der Titel als
+   * nicht gekennzeichnet und bleibt drin.
+   */
+  includeAiTracks?: boolean;
+};
+
 export async function generateMix(
   input: InputSet,
   previousMixIds: Set<string>,
   onStatus: (message: string) => void,
+  options: MixOptions = {},
 ): Promise<MixResult> {
+  const includeAiTracks = options.includeAiTracks ?? false;
   // 1. Gehörte Interpreten aus den 50 Eingangs-Songs (Reihenfolge = Aktualität)
   const heardArtistIds: string[] = [];
   for (const track of input.recentTracks) {
@@ -269,6 +281,7 @@ export async function generateMix(
   const context: ScoreContext = {
     allPlaylistTrackIds: input.allPlaylistTrackIds,
     heardArtistIds: input.heardArtistIds,
+    playlistArtistIds: input.playlistArtistIds,
     newArtistIds: new Set(newArtistIds),
     userGenres: input.userGenres,
     artistTopRank,
@@ -276,8 +289,15 @@ export async function generateMix(
 
   onStatus(t.statusScoring);
   const candidates: ScoredTrack[] = [];
+  let aiSkipped = 0;
   for (const track of details.values()) {
     if (isExcludedContent(track)) continue;
+    // Harter Ausschluss vor der Bewertung: gekennzeichnete KI-Titel kommen
+    // gar nicht erst in den Kandidatenpool
+    if (!includeAiTracks && track.ai === true) {
+      aiSkipped++;
+      continue;
+    }
     const breakdown = songScore(track, context);
     candidates.push({
       ...track,
@@ -322,6 +342,16 @@ export async function generateMix(
   const bonuses = playlistBonuses(best, context);
   const totalScore = best.reduce((sum, track) => sum + track.score, 0) + bonuses.total;
 
+  /*
+   * Diagnose: `ai` ist in Tidals Schema optional. Liefert die API das Feld für
+   * keinen einzigen Kandidaten, ist der Filter wirkungslos – das soll sichtbar
+   * sein und nicht als "keine KI-Titel gefunden" missverstanden werden.
+   */
+  const aiFlagPresent = [...details.values()].filter((track) => track.ai !== undefined).length;
+  console.info(
+    `[score] KI-Kennzeichnung: ${aiFlagPresent}/${details.size} Kandidaten mit Feld, ` +
+      `${aiSkipped} ausgeschlossen (Zulassen: ${includeAiTracks ? 'ja' : 'nein'})`,
+  );
   console.info(
     `[score] ${best.length} Tracks, Gesamtscore ${totalScore} ` +
       `(Songs ${totalScore - bonuses.total}, Boni ${bonuses.total}; ` +

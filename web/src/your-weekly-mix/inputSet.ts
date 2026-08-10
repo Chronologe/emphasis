@@ -14,6 +14,12 @@ export type InputSet = {
   allPlaylistTrackIds: Set<string>;
   /** Artist-IDs aus Playlists + Favoriten (+30-Regel) */
   heardArtistIds: Set<string>;
+  /**
+   * Artist-IDs, von denen bereits ein Titel in einer *Playlist* liegt.
+   * Echte Teilmenge von `heardArtistIds` (das schließt Favoriten mit ein) und
+   * Grundlage für den Bonus auf Top-Songs noch nicht gesammelter Interpreten.
+   */
+  playlistArtistIds: Set<string>;
   /** Genres der 50 Eingangs-Songs (+5-Regel) */
   userGenres: Set<string>;
   /** Unter "Songs" favorisierte Track-IDs – tauchen NIE im Mix auf */
@@ -152,8 +158,15 @@ export async function buildInputSet(
     .filter((track): track is TrackInfo => Boolean(track));
 
   const heardArtistIds = new Set<string>();
+  // Getrennt mitzählen: nur Titel, die tatsächlich in einer Playlist liegen.
+  // Braucht keinen zusätzlichen API-Aufruf – die Details sind bereits geladen.
+  const playlistArtistIds = new Set<string>();
   for (const track of details.values()) {
-    for (const artistId of track.artistIds) heardArtistIds.add(artistId);
+    const inPlaylist = allPlaylistTrackIds.has(track.id);
+    for (const artistId of track.artistIds) {
+      heardArtistIds.add(artistId);
+      if (inPlaylist) playlistArtistIds.add(artistId);
+    }
   }
 
   const userGenres = new Set<string>();
@@ -165,6 +178,7 @@ export async function buildInputSet(
     recentTracks,
     allPlaylistTrackIds,
     heardArtistIds,
+    playlistArtistIds,
     userGenres,
     favoriteTrackIds: new Set(favorites.map((item) => item.id)),
     mixPlaylistTrackIds,

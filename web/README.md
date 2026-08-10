@@ -67,15 +67,27 @@ play or podcast (keyword filter on title + album, German and English), already i
 your previous Emphasis mixes, already favourited, a duplicate (same title + artist), or
 from an artist that already has 2 tracks in the mix.
 
+**AI-generated tracks are excluded as well**, using TIDAL's own `ai` flag on the track
+resource. The *Allow AI songs* checkbox turns the filter off; it governs both the manual
+run and the weekly automation, where the choice is stored per user (`includeAiTracks` in
+the user record) and defaults to exclusion for records that predate the setting. The flag
+is optional in TIDAL's schema — a track without it counts as unflagged and stays in, so
+this filter is only as complete as TIDAL's detection.
+
 **4. Per-song score**
 
 | Points | Condition |
 |---:|---|
 | **+50** | song is in none of your playlists |
 | **+30** | the artist already appears in your library (matched by artist ID, not name) |
-| **+15** / **+10** | released within the last 3 / 6 months |
 | **+15** / **+10** | among the artist's top 10 / top 20 most popular songs |
+| **+10** / **+8** | …and that artist has no track in any of your playlists yet |
+| **+15** / **+10** | released within the last 3 / 6 months |
 | **+5** | genre matches one you listen to |
+
+The two top-song rows stack: a top-10 song by an artist you have never saved scores
+**25**, which deliberately outranks the **15** a brand-new release gets. Discovering the
+signature song of an artist missing from your collection is worth more than recency.
 
 **5. Whole-playlist bonuses**
 
@@ -95,6 +107,13 @@ whenever the total score (song points *plus* bonuses) improves.
 The result is **deterministic**: identical input produces an identical playlist. It only
 changes when your library changes, or after you save — saved tracks then join the
 exclusion list.
+
+**Where that exclusion list lives** depends on the automation. Without it, the playlist ID
+and the IDs of past mixes stay in your browser's `localStorage` and the server knows
+nothing about you. Once you enable the weekly automation, the server owns that state and
+the browser works against it: a manual run reads the server's list, writes its result back,
+and counts as that week's run, so the scheduler will not overwrite it hours later. Anything
+already remembered locally is migrated up on the first load after enabling.
 
 ---
 
@@ -331,6 +350,10 @@ else if (ageDays <= 183) recency = 10;  // ← "released within 6 months"
 
 if (rank <= 10) topRank = 15;           // ← top-10 of the artist
 else if (rank <= 20) topRank = 10;      // ← top-20 of the artist
+
+// Surcharge when that artist is in none of your playlists yet; keep the sum
+// above `recency` if top songs should stay ahead of new releases.
+unsavedArtistTop = rank <= 10 ? 10 : 8;
 
 const genre = track.genres.some((g) => context.userGenres.has(g)) ? 5 : 0;  // ← genre match
 ```

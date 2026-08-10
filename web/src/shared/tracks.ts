@@ -11,6 +11,12 @@ export type TrackInfo = {
   releaseDate?: string;
   genres: string[];
   popularity?: number;
+  /**
+   * Tidals KI-Kennzeichnung (`Tracks_Attributes.ai`). Das Feld ist laut
+   * Spezifikation optional – fehlt es, ist der Titel *nicht* als KI-Produktion
+   * erkannt worden. `undefined` darf deshalb nie wie `true` behandelt werden.
+   */
+  ai?: boolean;
 };
 
 export function relationshipIds(resource: JsonApiResource, name: string): string[] {
@@ -66,6 +72,7 @@ export async function fetchTrackDetails(
           .filter(Boolean)
           .map(String),
         popularity: typeof track.attributes?.popularity === 'number' ? track.attributes.popularity : undefined,
+        ai: typeof track.attributes?.ai === 'boolean' ? track.attributes.ai : undefined,
       });
     }
     onProgress?.(Math.min((batchIndex + 1) * 20, uniqueIds.length), uniqueIds.length);

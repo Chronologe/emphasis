@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { login } from '../shared/auth';
 import { buildInputSet, type InputSet } from './inputSet';
 import { generateMix, type MixResult } from './generator';
-import { getMixState, getPreviousMixIds, saveMixAsPlaylist, type CoverStatus } from './playlist';
+import { AUTOGEN_KEY_STORAGE, saveMixAsPlaylist, type CoverStatus } from './playlist';
+import { loadMixMemory, rememberMix, type MixMemory } from './mixMemory';
 import { fetchCoverUrls } from '../shared/covers';
 import { formatDate, IS_GERMAN, t } from '../shared/i18n';
 import { ROUTES } from '../shared/router';
@@ -17,9 +18,10 @@ const COVER_STATUS_TEXT: Record<CoverStatus, string> = {
 
 type Phase = 'profile' | 'generating' | 'mixReady' | 'saved';
 
-type AutogenState = { enabled: boolean; lastRunAt?: string } | 'unavailable' | null;
-
-const AUTOGEN_KEY_STORAGE = 'twm-autogen-key';
+type AutogenState =
+  | { enabled: boolean; lastRunAt?: string; includeAiTracks?: boolean; nextRunAt?: string }
+  | 'unavailable'
+  | null;
 
 export default function WeeklyMix({
   loggedIn,
@@ -43,6 +45,15 @@ export default function WeeklyMix({
   } | null>(null);
   const [autogen, setAutogen] = useState<AutogenState>(null);
   const [notice, setNotice] = useState('');
+  /*
+   * Gilt für beides: den Knopf hier und die wöchentliche Automatik. Ohne
+   * aktive Automatik bewusst nirgends gespeichert – nach jedem Besuch gilt
+   * wieder "keine KI-Titel". Mit Automatik ist der Server die Quelle der
+   * Wahrheit, weil er ohne offenen Browser generiert.
+   */
+  const [includeAiTracks, setIncludeAiTracks] = useState(false);
+  /** Playlist-ID + Ausschlussliste – bei aktiver Automatik vom Server geführt */
+  const [memory, setMemory] = useState<MixMemory | null>(null);
 
   const startedRef = useRef(false);
 
@@ -65,10 +76,17 @@ export default function WeeklyMix({
           setWarning(t.autogenFull);
           window.history.replaceState({}, '', window.location.pathname);
         }
-        void fetchAutogenStatus(userId);
+        /*
+         * Erst den Automatik-Status, dann das Gedächtnis: davon hängt ab, ob
+         * Playlist-ID und Ausschlussliste vom Server oder aus dem localStorage
+         * kommen – und mit welcher Playlist-ID der Eingangsdatensatz gebaut wird.
+         */
+        const state = await fetchAutogenStatus(userId);
+        const loaded = await loadMixMemory(userId, state?.enabled === true);
+        setMemory(loaded);
 
         setStatus(t.statusLoadingProfile);
-        const loadedInputSet = await buildInputSet(userId, getMixState().playlistId, setStatus);
+        const loadedInputSet = await buildInputSet(userId, loaded.playlistId, setStatus);
         setInputSet(loadedInputSet);
         setStatus('');
         // Collage nicht blockierend mit echten Covern anreichern
@@ -84,7 +102,16 @@ export default function WeeklyMix({
     try {
       const response = await fetch(`/api/autogen/status/${id}`);
       if (!response.ok) throw new Error(String(response.status));
-      setAutogen((await response.json()) as { enabled: boolean; lastRunAt?: string });
+      const state = (await response.json()) as {
+        enabled: boolean;
+        lastRunAt?: string;
+        includeAiTracks?: boolean;
+        nextRunAt?: string;
+      };
+      setAutogen(state);
+      // Bei aktiver Automatik gewinnt die gespeicherte Einstellung
+      if (state.enabled) setIncludeAiTracks(state.includeAiTracks === true);
+      return state;
     } catch {
       // Backend nicht erreichbar (z.B. lokale Entwicklung ohne Server) → Karte ausblenden
       setAutogen('unavailable');
@@ -92,8 +119,35 @@ export default function WeeklyMix({
   }
 
   function handleAutogenEnable() {
-    const playlistId = getMixState().playlistId ?? '';
-    window.location.href = `/api/autogen/start?playlistId=${encodeURIComponent(playlistId)}&lang=${IS_GERMAN ? 'de' : 'en'}`;
+    // Bisherige Playlist mitgeben, damit der Server sie weiterführt statt eine neue anzulegen
+    const playlistId = memory?.playlistId ?? '';
+    // Die aktuelle KI-Einstellung wandert in den Fluss und landet im Nutzerdatensatz
+    window.location.href =
+      `/api/autogen/start?playlistId=${encodeURIComponent(playlistId)}` +
+      `&lang=${IS_GERMAN ? 'de' : 'en'}&ai=${includeAiTracks ? '1' : '0'}`;
+  }
+
+  /** Umschalten; bei aktiver Automatik sofort serverseitig festhalten */
+  async function handleAiToggle(next: boolean) {
+    setIncludeAiTracks(next);
+    if (autogen === 'unavailable' || autogen === null || !autogen.enabled) return;
+    try {
+      const response = await fetch('/api/autogen/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          key: localStorage.getItem(AUTOGEN_KEY_STORAGE) ?? '',
+          includeAiTracks: next,
+        }),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      setAutogen({ ...autogen, includeAiTracks: next });
+    } catch {
+      // Server hat es nicht übernommen – Anzeige zurückdrehen, sonst lügt sie
+      setIncludeAiTracks(!next);
+      setError(t.autogenError);
+    }
   }
 
   async function handleAutogenDisable() {
@@ -119,7 +173,9 @@ export default function WeeklyMix({
     setSavedPlaylist(null);
     setPhase('generating');
     try {
-      const result = await generateMix(inputSet, getPreviousMixIds(), setStatus);
+      const result = await generateMix(inputSet, memory?.previousMixIds ?? new Set(), setStatus, {
+        includeAiTracks,
+      });
       setMixResult(result);
       if (result.warning) setWarning(result.warning);
       setPhase('mixReady');
@@ -136,13 +192,30 @@ export default function WeeklyMix({
     setError('');
     setStatus(t.statusSaving);
     try {
-      const result = await saveMixAsPlaylist(
-        mixResult.tracks.map((track) => track.id),
-        userId,
-      );
+      const trackIds = mixResult.tracks.map((track) => track.id);
+      const result = await saveMixAsPlaylist(trackIds, userId, memory?.playlistId);
       setSavedPlaylist(result);
       setPhase('saved');
       setStatus('');
+
+      /*
+       * Merken erst nach dem erfolgreichen Schreiben – und dort, wo der Zustand
+       * geführt wird. Scheitert nur dieser Schritt, steht die Playlist bereits
+       * bei Tidal; das darf keinen Fehler auf dem gesamten Vorgang auslösen,
+       * muss aber sichtbar sein (sonst wiederholen sich Titel beim nächsten Lauf).
+       */
+      try {
+        const updated = await rememberMix(
+          memory ?? { onServer: false, previousMixIds: new Set() },
+          userId,
+          trackIds,
+          result.playlistId,
+        );
+        setMemory(updated);
+        if (updated.onServer) void fetchAutogenStatus(userId);
+      } catch {
+        setWarning(t.mixRememberFailed);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setStatus('');
@@ -193,6 +266,20 @@ export default function WeeklyMix({
                   ))}
                   {inputSet.userGenres.size === 0 && <span className="muted">{t.noGenres}</span>}
                 </div>
+                {/* Gilt für den Knopf unten UND die wöchentliche Automatik */}
+                {!status && (
+                  <label className="option">
+                    <input
+                      type="checkbox"
+                      checked={includeAiTracks}
+                      onChange={(event) => void handleAiToggle(event.target.checked)}
+                    />
+                    <span>
+                      {t.aiOptionLabel}
+                      <span className="muted option-hint">{t.aiOptionHint}</span>
+                    </span>
+                  </label>
+                )}
                 {phase === 'profile' && !status && (
                   <button className="primary glow" onClick={() => void handleGenerate()}>
                     {t.generateButton}
@@ -210,6 +297,15 @@ export default function WeeklyMix({
                     {autogen.lastRunAt && (
                       <p className="muted">{t.autogenLastRun(formatDate(new Date(autogen.lastRunAt)))}</p>
                     )}
+                    {/* Ohne diese Zeile wüssten frisch aktivierte Nutzer nicht,
+                        wann überhaupt etwas passiert – die Playlist gibt es ja noch nicht */}
+                    <p className="muted">
+                      {autogen.nextRunAt
+                        ? t.autogenNextRun(formatDate(new Date(autogen.nextRunAt)))
+                        : autogen.lastRunAt
+                          ? t.autogenRunSoon
+                          : t.autogenFirstRunSoon}
+                    </p>
                     <button className="ghost" onClick={() => void handleAutogenDisable()}>
                       {t.autogenDisable}
                     </button>

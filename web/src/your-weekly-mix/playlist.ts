@@ -5,6 +5,8 @@ import { apiPatch, apiPost } from '../shared/tidalClient';
 
 const PREVIOUS_MIXES_STORAGE_KEY = 'twm-previous-mix-track-ids';
 const MIX_STATE_STORAGE_KEY = 'twm-mix-state';
+/** Verwaltungs-Key der Automatik – berechtigt zu den /api/autogen/-Aufrufen */
+export const AUTOGEN_KEY_STORAGE = 'twm-autogen-key';
 export const PLAYLIST_NAME = t.playlistName;
 
 export type MixState = {
@@ -14,7 +16,11 @@ export type MixState = {
 
 export type CoverStatus = 'set' | 'no-file' | 'not-allowed' | 'failed';
 
-/** Track-IDs aller früher generierten Mixe (harte Ausschluss-Liste) */
+/**
+ * Track-IDs aller früher generierten Mixe (harte Ausschluss-Liste), lokaler Stand.
+ * Maßgeblich nur ohne aktive Automatik – sonst führt der Server die Liste,
+ * siehe `mixMemory.ts`.
+ */
 export function getPreviousMixIds(): Set<string> {
   try {
     const raw = localStorage.getItem(PREVIOUS_MIXES_STORAGE_KEY);
@@ -24,7 +30,7 @@ export function getPreviousMixIds(): Set<string> {
   }
 }
 
-function rememberMixIds(trackIds: string[]): void {
+export function rememberMixIdsLocally(trackIds: string[]): void {
   const all = getPreviousMixIds();
   trackIds.forEach((id) => all.add(id));
   localStorage.setItem(PREVIOUS_MIXES_STORAGE_KEY, JSON.stringify([...all]));
@@ -38,7 +44,7 @@ export function getMixState(): MixState {
   }
 }
 
-function saveMixState(state: MixState): void {
+export function saveMixState(state: MixState): void {
   localStorage.setItem(MIX_STATE_STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -109,16 +115,22 @@ async function trySetCoverArt(playlistId: string): Promise<CoverStatus> {
   }
 }
 
+/**
+ * Schreibt die Playlist bei Tidal. Das Merken des Ergebnisses macht der
+ * Aufrufer über `rememberMix` – nur der kennt die maßgebliche Quelle
+ * (Server bei aktiver Automatik, sonst localStorage).
+ */
 export async function saveMixAsPlaylist(
   trackIds: string[],
   userId: string,
+  existingPlaylistId?: string,
 ): Promise<{ playlistId: string; name: string; coverStatus: CoverStatus }> {
   let playlistId: string;
   try {
     playlistId = await upsertMixPlaylist(
       trackIds,
       PLAYLIST_NAME,
-      getMixState().playlistId,
+      existingPlaylistId,
       userId,
       IS_GERMAN ? 'de' : 'en',
     );
@@ -129,8 +141,5 @@ export async function saveMixAsPlaylist(
   }
 
   const coverStatus = await trySetCoverArt(playlistId);
-
-  rememberMixIds(trackIds);
-  saveMixState({ playlistId, lastSavedAt: new Date().toISOString() });
   return { playlistId, name: PLAYLIST_NAME, coverStatus };
 }

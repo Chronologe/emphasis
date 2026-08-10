@@ -84,6 +84,9 @@ const de = {
   noGenres:
     'Tidal liefert für deine Songs keine Genre-Daten – der Mix basiert dann auf Ähnlichkeits-Empfehlungen zu deinen Songs.',
   generateButton: 'Mix der Woche generieren',
+  aiOptionLabel: 'KI-Songs zulassen',
+  aiOptionHint:
+    'Standardmäßig bleiben von Tidal als KI-generiert gekennzeichnete Titel draußen – hier wie auch bei der automatischen wöchentlichen Generierung.',
 
   statusLoadingProfile: 'Lade dein Hörprofil …',
   statusFavorites: 'Lade Favoriten …',
@@ -132,6 +135,12 @@ const de = {
   autogenEnable: 'Wöchentliche Auto-Generierung aktivieren',
   autogenActive: 'Aktiv – dein Mix wird jede Woche automatisch aktualisiert.',
   autogenLastRun: (date: string) => `Zuletzt generiert: ${date}.`,
+  autogenNextRun: (date: string) => `Nächste Generierung: ${date}.`,
+  mixRememberFailed:
+    'Die Playlist wurde gespeichert, der Server konnte sie aber nicht vermerken. Beim nächsten Mix können sich einzelne Titel wiederholen.',
+  autogenRunSoon: 'Die nächste Generierung steht an und läuft innerhalb der nächsten Stunde.',
+  autogenFirstRunSoon:
+    'Deine Playlist wird innerhalb der nächsten Stunde zum ersten Mal erstellt – du musst nichts weiter tun. Danach jede Woche neu.',
   autogenJustEnabled: 'Automatische wöchentliche Generierung ist jetzt aktiv!',
   autogenDisable: 'Deaktivieren & Daten löschen',
   autogenDisabled:
@@ -326,6 +335,9 @@ const en: typeof de = {
   noGenres:
     'Tidal provides no genre data for your songs – the mix will be based on similarity recommendations instead.',
   generateButton: 'Generate weekly mix',
+  aiOptionLabel: 'Allow AI songs',
+  aiOptionHint:
+    'By default, tracks TIDAL flags as AI-generated are left out — here and in the automatic weekly generation.',
 
   statusLoadingProfile: 'Loading your listening profile …',
   statusFavorites: 'Loading favorites …',
@@ -371,6 +383,12 @@ const en: typeof de = {
   autogenEnable: 'Enable weekly auto-generation',
   autogenActive: 'Active – your mix is updated automatically every week.',
   autogenLastRun: (date) => `Last generated: ${date}.`,
+  autogenNextRun: (date) => `Next generation: ${date}.`,
+  mixRememberFailed:
+    'The playlist was saved, but the server could not record it. Individual tracks may repeat in your next mix.',
+  autogenRunSoon: 'The next generation is due and will run within the hour.',
+  autogenFirstRunSoon:
+    'Your playlist will be created for the first time within the hour – nothing else to do. After that, it refreshes weekly.',
   autogenJustEnabled: 'Automatic weekly generation is now active!',
   autogenDisable: 'Disable & delete data',
   autogenDisabled:

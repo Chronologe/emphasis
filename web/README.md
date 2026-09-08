@@ -73,13 +73,29 @@ manual run and the weekly automation, where the choice is stored per user
 (`includeAiTracks` in the user record) and defaults to exclusion for records that predate
 the setting.
 
-> ⚠️ **As of August 2026 the filter cannot do anything.** A run over 1768 candidates
-> returned the `ai` attribute on zero tracks and zero albums, while `explicit: false` did
-> come through — so the API is not omitting false values, it simply does not ship the
-> field. Spec-mandatory attributes such as `key` and `keyScale` are missing too, which
-> suggests the deployed API predates the published specification. The code is correct and
-> will start filtering the moment TIDAL delivers the flag; until then the app says so
-> after each run instead of implying protection it cannot give.
+> ⚠️ **As of September 2026 the filter cannot do anything — TIDAL does not ship the flag.**
+> The published spec (`tidal-api-oas.json`, v1.10.126) defines `ai` on both
+> `Tracks_Attributes` and `Albums_Attributes` as *"Whether the track/album is
+> AI-generated"*, but the deployed API never returns it. The decisive check is The Velvet
+> Sundown, the best-known AI band there is: all of its tracks and albums come back with no
+> `ai` attribute at all. Absence therefore does not mean "not AI" — the field is simply
+> not being delivered.
+>
+> There is no way to ask for it either. Sparse fieldsets are ignored (`fields[tracks]=ai`
+> returns the full default set, and the spec defines no `fields[…]` parameter for
+> `/tracks`); no `filter[ai]` exists; the `metadataStatus` relationship — the status of
+> TIDAL's own detection job — resolves to `null`. The one place the underlying value lives
+> is `File_Status.aiScanningFileStatus` (`NOT_SCANNED | SCANNING | IS_AI | NOT_AI |
+> ERROR`) on `/trackSourceFiles`, and that sits behind the internal `r_usr` scope: 404 for
+> third parties.
+>
+> Note that `ai` is *optional* in the spec while `explicit` is *required*, so a present
+> `explicit: false` says nothing about whether a false `ai` would be delivered — only the
+> AI-band check settles it. Spec-mandatory attributes such as `key` and `keyScale` are
+> missing as well, so the deployed API is behind its own specification.
+>
+> The code is correct and will start filtering the moment TIDAL delivers the flag; until
+> then the app says so after each run instead of implying protection it cannot give.
 
 **4. Per-song score**
 

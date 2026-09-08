@@ -132,4 +132,10 @@ Hier nur, was unabhängig vom konkreten Server gilt:
 ## Bekannte offene Punkte
 
 - **Cover der Wochen-Mix-Playlist** muss manuell in Tidal gesetzt werden (API-Limit).
+- **Die KI-Kennzeichnung liefert Tidal nicht aus.** `ai` steht in der Spezifikation
+  (optional, auf Track und Album), kommt aber nirgends an – auch nicht bei erklärtermaßen
+  KI-erzeugter Musik. Es gibt keinen Weg, es anzufordern: Sparse Fieldsets werden
+  ignoriert, einen `filter[ai]` gibt es nicht, `metadataStatus` ist `null`, und die Quelle
+  `aiScanningFileStatus` liegt hinter dem internen Scope `r_usr`. Details und Belege in
+  `web/README.md`. Nicht erneut untersuchen, bevor Tidal etwas ankündigt.
 - Betriebsseitige offene Punkte stehen in `CLAUDE.local.md`.

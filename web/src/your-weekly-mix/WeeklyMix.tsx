@@ -182,6 +182,8 @@ export default function WeeklyMix({
       });
       setMixResult(result);
       if (result.warning) setWarning(result.warning);
+      // Nicht verschweigen, wenn der KI-Ausschluss mangels Daten nichts tun konnte
+      if (!includeAiTracks && !result.aiFlagAvailable) setNotice(t.aiFlagUnavailable);
       setPhase('mixReady');
       setStatus('');
     } catch (err) {

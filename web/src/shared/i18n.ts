@@ -87,6 +87,8 @@ const de = {
   aiOptionLabel: 'KI-Songs zulassen',
   aiOptionHint:
     'Standardmäßig bleiben von Tidal als KI-generiert gekennzeichnete Titel draußen – hier wie auch bei der automatischen wöchentlichen Generierung.',
+  aiFlagUnavailable:
+    'Hinweis: Tidal hat zu keinem Titel und keinem Album eine KI-Kennzeichnung mitgeliefert, der Ausschluss konnte also nichts bewirken. Das Feld ist in Tidals API-Spezifikation vorgesehen, wird aber noch nicht ausgeliefert. Sobald es kommt, greift der Filter von selbst.',
 
   statusLoadingProfile: 'Lade dein Hörprofil …',
   statusFavorites: 'Lade Favoriten …',
@@ -341,6 +343,8 @@ const en: typeof de = {
   aiOptionLabel: 'Allow AI songs',
   aiOptionHint:
     'By default, tracks TIDAL flags as AI-generated are left out — here and in the automatic weekly generation.',
+  aiFlagUnavailable:
+    'Note: TIDAL supplied no AI marking for any track or album, so the exclusion had nothing to act on. The field exists in TIDAL’s API specification but is not being delivered yet. The filter will take effect on its own once it is.',
 
   statusLoadingProfile: 'Loading your listening profile …',
   statusFavorites: 'Loading favorites …',

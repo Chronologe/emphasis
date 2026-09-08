@@ -27,6 +27,13 @@ export type MixResult = {
   compositionBonus: boolean;
   distinctArtistCount: number;
   warning?: string;
+  /**
+   * Hat Tidal für irgendeinen Kandidaten eine KI-Kennzeichnung mitgeliefert?
+   * Ist das nie der Fall, konnte der Filter nichts ausrichten – das darf die
+   * Oberfläche nicht als wirksamen Schutz darstellen. Zur Laufzeit ermittelt,
+   * damit der Hinweis von selbst verschwindet, sobald Tidal das Feld liefert.
+   */
+  aiFlagAvailable: boolean;
 };
 
 const MAX_HEARD_ARTISTS = 25;
@@ -376,6 +383,7 @@ export async function generateMix(
     distinctBonus: bonuses.distinctBonus > 0,
     compositionBonus: bonuses.compositionBonus > 0,
     distinctArtistCount: bonuses.distinctArtistCount,
+    aiFlagAvailable: aiFlagPresent > 0 || albumFlagPresent > 0,
     warning:
       best.length < PLAYLIST_TARGET_SIZE
         ? t.warningFewTracks(best.length, PLAYLIST_TARGET_SIZE)

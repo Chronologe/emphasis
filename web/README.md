@@ -67,12 +67,19 @@ play or podcast (keyword filter on title + album, German and English), already i
 your previous Emphasis mixes, already favourited, a duplicate (same title + artist), or
 from an artist that already has 2 tracks in the mix.
 
-**AI-generated tracks are excluded as well**, using TIDAL's own `ai` flag on the track
-resource. The *Allow AI songs* checkbox turns the filter off; it governs both the manual
-run and the weekly automation, where the choice is stored per user (`includeAiTracks` in
-the user record) and defaults to exclusion for records that predate the setting. The flag
-is optional in TIDAL's schema — a track without it counts as unflagged and stays in, so
-this filter is only as complete as TIDAL's detection.
+**AI-generated tracks are excluded as well**, using TIDAL's own `ai` flag on the track and
+album resources. The *Allow AI songs* checkbox turns the filter off; it governs both the
+manual run and the weekly automation, where the choice is stored per user
+(`includeAiTracks` in the user record) and defaults to exclusion for records that predate
+the setting.
+
+> ⚠️ **As of August 2026 the filter cannot do anything.** A run over 1768 candidates
+> returned the `ai` attribute on zero tracks and zero albums, while `explicit: false` did
+> come through — so the API is not omitting false values, it simply does not ship the
+> field. Spec-mandatory attributes such as `key` and `keyScale` are missing too, which
+> suggests the deployed API predates the published specification. The code is correct and
+> will start filtering the moment TIDAL delivers the flag; until then the app says so
+> after each run instead of implying protection it cannot give.
 
 **4. Per-song score**
 

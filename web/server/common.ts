@@ -2,10 +2,13 @@
  * Gemeinsame Bausteine der Server-Module: OAuth (PKCE), HTTP-Helfer,
  * Datenverzeichnis und Kapazitätsprüfung.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statfsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+
+import { setScopedTokenSource } from '../src/shared/tidalClient';
 
 export const PORT = Number(process.env.PORT ?? 8787);
 export const DATA_DIR = process.env.EMPHASIS_DATA_DIR ?? '/opt/emphasis/data';
@@ -112,6 +115,24 @@ export async function tidalUserIdOfToken(accessToken: string): Promise<string | 
 export function bearerToken(request: IncomingMessage): string {
   const header = request.headers.authorization ?? '';
   return header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+}
+
+/**
+ * Das Access-Token des gerade laufenden Vorgangs.
+ *
+ * Der Server bedient mehrere Nutzer gleichzeitig; ohne diese Bindung könnte ein
+ * paralleler Vorgang das global gesetzte Token austauschen, während der eigene
+ * an einem await hängt. Die Sammlungs-Endpunkte sprechen den Nutzer über `me`
+ * an – ein fremdes Token führte dort nicht zu einem Fehler, sondern still zur
+ * falschen Sammlung. AsyncLocalStorage hält das Token deshalb am Vorgang, nicht
+ * am Modul.
+ */
+const tokenStore = new AsyncLocalStorage<string>();
+setScopedTokenSource(() => tokenStore.getStore());
+
+/** Führt `action` aus; alle Tidal-Aufrufe darin benutzen genau dieses Token. */
+export function withToken<T>(accessToken: string, action: () => Promise<T>): Promise<T> {
+  return tokenStore.run(accessToken, action);
 }
 
 /** Access-Token aus einem Refresh-Token holen; liefert ggf. ein erneuertes Refresh-Token */

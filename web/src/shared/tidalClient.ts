@@ -2,14 +2,34 @@ const BASE_URL = 'https://openapi.tidal.com/v2';
 
 /**
  * Token-Quelle ist injizierbar: im Browser das Tidal-Auth-SDK (setzt auth.ts),
- * auf dem Auto-Generierungs-Server der Refresh-Token-Flow.
+ * auf dem Server der Refresh-Token-Flow.
  */
 let tokenProvider: () => Promise<string> = async () => {
-  throw new Error('Kein Token-Provider gesetzt (setTokenProvider aufrufen)');
+  throw new Error('Kein Token gesetzt (setTokenProvider bzw. withToken benutzen)');
 };
 
 export function setTokenProvider(provider: () => Promise<string>): void {
   tokenProvider = provider;
+}
+
+/**
+ * Vorrangige, an den laufenden Vorgang gebundene Token-Quelle.
+ *
+ * Ein Modul-globaler Provider reicht im Browser (dort gibt es genau einen
+ * angemeldeten Nutzer), auf dem Server aber nicht: ein laufender Wochen-Mix und
+ * eine gleichzeitig eintreffende HTTP-Anfrage warten beide an await-Punkten und
+ * würden sich das Token gegenseitig unter den Füßen wegziehen. Seit die
+ * Sammlungs-Endpunkte über `me` gehen, wäre die Folge nicht mehr ein Fehler,
+ * sondern die Sammlung des falschen Nutzers.
+ *
+ * Der Server registriert hier deshalb einen AsyncLocalStorage-Kontext
+ * (`withToken` in server/common.ts). Liefert er nichts, gilt der globale
+ * Provider – im Browser die einzige Quelle.
+ */
+let scopedToken: () => string | undefined = () => undefined;
+
+export function setScopedTokenSource(source: () => string | undefined): void {
+  scopedToken = source;
 }
 
 export type JsonApiResource = {
@@ -43,7 +63,7 @@ async function apiFetch(
     : `${BASE_URL}${pathWithQuery.startsWith('/v2/') ? pathWithQuery.slice(3) : pathWithQuery}`;
 
   for (let attempt = 0; attempt < 5; attempt++) {
-    const token = await tokenProvider();
+    const token = scopedToken() ?? (await tokenProvider());
     const response = await fetch(url, {
       method: options.method ?? 'GET',
       headers: {

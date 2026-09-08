@@ -12,7 +12,6 @@ import { readdirSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { setTokenProvider } from '../src/shared/tidalClient';
 import {
   applyPlaylistDelta,
   createPlaylist,
@@ -35,6 +34,7 @@ import {
   redirect,
   refreshAccessToken,
   sendJson,
+  withToken,
 } from './common';
 
 const GROUPS_DIR = join(DATA_DIR, 'shared');
@@ -161,8 +161,7 @@ function publicView(group: Group, userId: string) {
 async function withMemberToken<T>(member: Member, action: () => Promise<T>): Promise<T> {
   const { accessToken, refreshToken } = await refreshAccessToken(member.refreshToken);
   if (refreshToken) member.refreshToken = refreshToken;
-  setTokenProvider(async () => accessToken);
-  return action();
+  return withToken(accessToken, action);
 }
 
 // ---------- Abgleich ----------
@@ -298,8 +297,14 @@ async function handleCreate(
   data: Extract<LoginData, { mode: 'create' }>,
 ): Promise<Group> {
   const { accessToken } = await refreshAccessToken(refreshToken);
-  setTokenProvider(async () => accessToken);
+  return withToken(accessToken, () => createGroupFor(userId, refreshToken, data));
+}
 
+async function createGroupFor(
+  userId: string,
+  refreshToken: string,
+  data: Extract<LoginData, { mode: 'create' }>,
+): Promise<Group> {
   let playlistId = data.playlistId;
   let trackIds: string[] = [];
   let name = data.newName?.trim() || 'Shared Playlist';
@@ -353,8 +358,15 @@ async function handleJoin(
   if (group.members.length >= MAX_MEMBERS) throw new Error('Gruppe ist voll');
 
   const { accessToken } = await refreshAccessToken(refreshToken);
-  setTokenProvider(async () => accessToken);
+  return withToken(accessToken, () => joinGroup(group, userId, refreshToken, data));
+}
 
+async function joinGroup(
+  group: Group,
+  userId: string,
+  refreshToken: string,
+  data: Extract<LoginData, { mode: 'join' }>,
+): Promise<Group> {
   const existing = memberOf(group, userId);
   if (existing) {
     // Erneuter Beitritt: Token auffrischen, Rechte behalten

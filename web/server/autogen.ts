@@ -8,7 +8,6 @@ import { readdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { setTokenProvider } from '../src/shared/tidalClient';
 import { MIX_PLAYLIST_NAME_BY_LANG } from '../src/shared/i18n';
 import { PATHS, type Lang } from '../src/shared/seo';
 import { buildInputSet } from '../src/your-weekly-mix/inputSet';
@@ -28,6 +27,7 @@ import {
   refreshAccessToken,
   sendJson,
   tidalUserIdOfToken,
+  withToken,
 } from './common';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -85,8 +85,11 @@ async function runGenerationForUser(user: UserRecord): Promise<void> {
   console.log(`[autogen] Generiere Mix für Nutzer ${user.userId} …`);
   const { accessToken, refreshToken } = await refreshAccessToken(user.refreshToken);
   if (refreshToken) user.refreshToken = refreshToken;
-  setTokenProvider(async () => accessToken);
+  // Ein Lauf dauert Minuten – das Token muss an ihm hängen, nicht am Modul.
+  await withToken(accessToken, () => generateFor(user));
+}
 
+async function generateFor(user: UserRecord): Promise<void> {
   const inputSet = await buildInputSet(user.playlistId, () => {});
   const result = await generateMix(inputSet, new Set(user.previousMixIds), () => {}, {
     includeAiTracks: user.includeAiTracks ?? false,

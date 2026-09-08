@@ -1,3 +1,4 @@
+import { fetchCollectionPlaylists } from './collection';
 import { apiDelete, apiGet, apiGetPaginated, apiPatch, apiPost, chunk } from './tidalClient';
 
 /** Von beiden Tools genutzte Playlist-Grundoperationen. */
@@ -148,13 +149,9 @@ export async function createPlaylist(
   return playlistId;
 }
 
-/** Eigene Playlists des Nutzers (für Auswahllisten) */
-export async function fetchOwnPlaylists(userId: string): Promise<PlaylistInfo[]> {
-  const { data, included } = await apiGetPaginated(
-    `/userCollections/${userId}/relationships/playlists`,
-    { sort: '-playlists.lastUpdatedAt', include: 'playlists' },
-    100,
-  );
+/** Playlists der Sammlung des Nutzers (für Auswahllisten) */
+export async function fetchOwnPlaylists(): Promise<PlaylistInfo[]> {
+  const { data, included } = await fetchCollectionPlaylists(100);
   const details = new Map(included.filter((r) => r.type === 'playlists').map((r) => [r.id, r]));
   return data
     .map((entry) => {

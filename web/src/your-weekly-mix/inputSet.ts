@@ -1,3 +1,4 @@
+import { fetchCollectionPlaylists, fetchFavoriteTrackItems } from '../shared/collection';
 import { isEmphasisDescription } from '../shared/descriptions';
 import { KNOWN_MIX_PLAYLIST_NAMES, t } from '../shared/i18n';
 import { apiGetPaginated, indexIncluded, type JsonApiResource } from '../shared/tidalClient';
@@ -65,17 +66,16 @@ function isMixPlaylist(
   return isEmphasisDescription(typeof description === 'string' ? description : undefined);
 }
 
+/**
+ * Ohne User-ID: die Sammlungs-Endpunkte sprechen den Nutzer über `me` an, also
+ * immer den Inhaber des gerade gesetzten Tokens (siehe shared/collection.ts).
+ */
 export async function buildInputSet(
-  userId: string,
   mixPlaylistId: string | undefined,
   onStatus: (message: string) => void,
 ): Promise<InputSet> {
   onStatus(t.statusPlaylists);
-  const { data: playlists, included } = await apiGetPaginated(
-    `/userCollections/${userId}/relationships/playlists`,
-    { sort: '-playlists.lastUpdatedAt', include: 'playlists' },
-    MAX_PLAYLISTS,
-  );
+  const { data: playlists, included } = await fetchCollectionPlaylists(MAX_PLAYLISTS);
   const playlistDetails = indexIncluded(included).get('playlists') ?? new Map();
 
   const ownPlaylists = playlists.filter(
@@ -123,11 +123,7 @@ export async function buildInputSet(
   }
 
   onStatus(t.statusFavorites);
-  const { data: favorites } = await apiGetPaginated(
-    `/userCollections/${userId}/relationships/tracks`,
-    { sort: '-tracks.addedAt' },
-    MAX_FAVORITES,
-  );
+  const { data: favorites } = await fetchFavoriteTrackItems(MAX_FAVORITES);
   for (const item of favorites) {
     dated.push({ id: item.id, addedAt: addedAtOf(item, order++) });
   }

@@ -85,6 +85,15 @@ emphasis/
    Alles, was URLs mitschreibt (z. B. Analytics), muss den Query-String verwerfen.
 8. **Die Hör-Historie ist für Drittanbieter nicht verfügbar** (`r_usr` ist intern).
    Ersatz: zuletzt gespeicherte/favorisierte Titel.
+9. **Tidal schaltet Ressourcen ohne Ankündigung ab.** Anfang September 2026 verschwand
+   `userCollections` (404). Ersatz sind `userCollectionTracks` / `userCollectionPlaylists`
+   mit einer gemeinsamen `items`-Beziehung; die Ressourcen-ID ist dort **Base62**, nicht
+   mehr die numerische User-ID – benutzt wird deshalb `me`. Alles davon steht gebündelt in
+   `src/shared/collection.ts`.
+10. **Ein 404 darf nie als „leere Liste" durchgehen.** `apiGet` liefert bei 404 `null`,
+    woraus `apiGetPaginated` früher stillschweigend `[]` machte. Der abgeschaltete
+    Endpunkt sah dadurch eine Woche lang aus wie „Sammlung ist leer". Endpunkte, die es
+    zwingend geben muss, deshalb mit `{ requireFound: true }` abfragen.
 
 ---
 

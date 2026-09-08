@@ -123,7 +123,6 @@ async function trySetCoverArt(playlistId: string): Promise<CoverStatus> {
  */
 export async function saveMixAsPlaylist(
   trackIds: string[],
-  userId: string,
   existingPlaylistId?: string,
 ): Promise<{ playlistId: string; name: string; coverStatus: CoverStatus }> {
   let playlistId: string;
@@ -132,7 +131,6 @@ export async function saveMixAsPlaylist(
       trackIds,
       PLAYLIST_NAME,
       existingPlaylistId,
-      userId,
       IS_GERMAN ? 'de' : 'en',
     );
   } catch (error) {

@@ -86,7 +86,7 @@ export default function WeeklyMix({
         setMemory(loaded);
 
         setStatus(t.statusLoadingProfile);
-        const loadedInputSet = await buildInputSet(userId, loaded.playlistId, setStatus);
+        const loadedInputSet = await buildInputSet(loaded.playlistId, setStatus);
         setInputSet(loadedInputSet);
         setStatus('');
         // Collage nicht blockierend mit echten Covern anreichern
@@ -199,7 +199,7 @@ export default function WeeklyMix({
     setStatus(t.statusSaving);
     try {
       const trackIds = mixResult.tracks.map((track) => track.id);
-      const result = await saveMixAsPlaylist(trackIds, userId, memory?.playlistId);
+      const result = await saveMixAsPlaylist(trackIds, memory?.playlistId);
       setSavedPlaylist(result);
       setPhase('saved');
       setStatus('');

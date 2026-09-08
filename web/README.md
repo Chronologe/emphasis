@@ -405,6 +405,12 @@ Larger values mean a broader pool and better mixes, but more API calls and a lon
 | `MAX_FAVORITES` | `1000` | favourites loaded (these are excluded from the mix) |
 | `MIX_CODEWORD` | `'emphasis'` | description keyword identifying the generated playlist |
 
+The collection endpoints themselves live in
+[`src/shared/collection.ts`](src/shared/collection.ts) — TIDAL retired the `userCollections`
+resource in September 2026 in favour of `userCollectionTracks` / `userCollectionPlaylists`,
+addressed as `me` rather than by numeric user ID, so keeping them in one file means one
+place to change the next time.
+
 ### Shared playlist — [`server/shared.ts`](server/shared.ts)
 
 `SYNC_INTERVAL_MS` (24 h) sets how often a group is reconciled, `MAX_MEMBERS` caps group

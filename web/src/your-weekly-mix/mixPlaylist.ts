@@ -1,10 +1,11 @@
+import { fetchCollectionPlaylists } from '../shared/collection';
 import { KNOWN_MIX_PLAYLIST_NAMES } from '../shared/i18n';
 import {
   createPlaylist,
   playlistExists,
   replacePlaylistItems,
 } from '../shared/playlistItems';
-import { apiGetPaginated, apiPatch, indexIncluded } from '../shared/tidalClient';
+import { apiPatch, indexIncluded } from '../shared/tidalClient';
 
 import { isEmphasisDescription, weeklyMixDescription, type Lang } from '../shared/descriptions';
 
@@ -13,13 +14,9 @@ import { isEmphasisDescription, weeklyMixDescription, type Lang } from '../share
  * bestehende Mix-Playlist über Name ODER Beschreibung (Codewort) wiedergefunden,
  * statt eine neue anzulegen.
  */
-export async function findExistingMixPlaylist(userId: string): Promise<string | undefined> {
+export async function findExistingMixPlaylist(): Promise<string | undefined> {
   try {
-    const { data, included } = await apiGetPaginated(
-      `/userCollections/${userId}/relationships/playlists`,
-      { include: 'playlists' },
-      50,
-    );
+    const { data, included } = await fetchCollectionPlaylists(50);
     const details = indexIncluded(included).get('playlists') ?? new Map();
     for (const playlist of data) {
       const attributes = details.get(playlist.id)?.attributes as
@@ -45,15 +42,14 @@ export async function upsertMixPlaylist(
   trackIds: string[],
   name: string,
   existingPlaylistId?: string,
-  userId?: string,
   lang: Lang = 'en',
 ): Promise<string> {
   // Beschreibung trägt den Zeitpunkt der Erstellung
   const description = weeklyMixDescription(lang);
 
   let playlistId = existingPlaylistId;
-  if ((!playlistId || !(await playlistExists(playlistId))) && userId) {
-    playlistId = await findExistingMixPlaylist(userId);
+  if (!playlistId || !(await playlistExists(playlistId))) {
+    playlistId = await findExistingMixPlaylist();
   }
 
   if (playlistId && (await playlistExists(playlistId))) {

@@ -90,7 +90,7 @@ export default function SharedPlaylist({
     if (!loggedIn || !userId || startedRef.current) return;
     startedRef.current = true;
     void reload();
-    void fetchOwnPlaylists(userId)
+    void fetchOwnPlaylists()
       .then((list) => setPlaylists(list.filter(isOfferable)))
       .catch(() => setPlaylists([]));
   }, [loggedIn, userId, reload]);

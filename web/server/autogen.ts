@@ -87,7 +87,7 @@ async function runGenerationForUser(user: UserRecord): Promise<void> {
   if (refreshToken) user.refreshToken = refreshToken;
   setTokenProvider(async () => accessToken);
 
-  const inputSet = await buildInputSet(user.userId, user.playlistId, () => {});
+  const inputSet = await buildInputSet(user.playlistId, () => {});
   const result = await generateMix(inputSet, new Set(user.previousMixIds), () => {}, {
     includeAiTracks: user.includeAiTracks ?? false,
   });
@@ -100,13 +100,7 @@ async function runGenerationForUser(user: UserRecord): Promise<void> {
 
   const name = MIX_PLAYLIST_NAME_BY_LANG[user.lang] ?? MIX_PLAYLIST_NAME_BY_LANG.en;
   const trackIds = result.tracks.map((track) => track.id);
-  user.playlistId = await upsertMixPlaylist(
-    trackIds,
-    name,
-    user.playlistId,
-    user.userId,
-    user.lang,
-  );
+  user.playlistId = await upsertMixPlaylist(trackIds, name, user.playlistId, user.lang);
 
   user.previousMixIds = [...user.previousMixIds, ...trackIds].slice(-PREVIOUS_IDS_CAP);
   user.lastRunAt = new Date().toISOString();

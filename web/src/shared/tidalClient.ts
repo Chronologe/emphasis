@@ -93,15 +93,24 @@ export async function apiDelete(path: string, body: unknown): Promise<JsonApiDoc
 /**
  * Folgt links.next, bis maxItems Ressourcen gesammelt sind.
  * Liefert data-Einträge (in Reihenfolge) und alle included-Ressourcen.
+ *
+ * `requireFound` für Endpunkte, die es zwingend geben muss: ein 404 kommt hier
+ * sonst als leere Liste an und ist von „nichts gespeichert" nicht zu
+ * unterscheiden. Genau das hat einmal eine abgeschaltete Tidal-Ressource eine
+ * Woche lang als „Sammlung ist leer" erscheinen lassen.
  */
 export async function apiGetPaginated(
   path: string,
   params: Record<string, string>,
   maxItems: number,
+  options: { requireFound?: boolean } = {},
 ): Promise<{ data: JsonApiResource[]; included: JsonApiResource[] }> {
   const data: JsonApiResource[] = [];
   const included: JsonApiResource[] = [];
   let document = await apiGet(path, params);
+  if (!document && options.requireFound) {
+    throw new Error(`Tidal API 404 bei ${path}: Ressource nicht gefunden`);
+  }
 
   while (document) {
     data.push(...toArray(document.data));
